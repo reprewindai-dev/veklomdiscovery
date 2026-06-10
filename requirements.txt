@@ -15,7 +15,6 @@ ecdsa==0.18.0
 hexbytes==0.3.1
 frozendict==2.3.8
 typing-extensions==4.8.0
-pysha3==1.0.2
 rlp==3.0.0
 cached-property==1.5.2
 lru-dict==1.2.0
