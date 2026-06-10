@@ -10,8 +10,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@coinbase/x402": "^2.1.0",
+    "@x402/core": "^2.14.0",
+    "@x402/evm": "^2.14.0",
+    "@x402/next": "^2.14.0",
     "lucide-react": "^0.468.0",
-    "next": "^15.1.0",
+    "next": "^16.2.9",
     "ox": "^0.9.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

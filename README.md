@@ -1,10 +1,10 @@
-# Veklom ID
+# Veklom Discovery
 
-Production Next.js shell for Veklom Discovery, with Base Builder Code attribution, X402 payment flows, ACP governance, smart contracts, and FastAPI backend assets. The frontend is configured to connect to the `veklom-byos-backend` service through `NEXT_PUBLIC_VEKLOM_API_URL`.
+Production Next.js app for Veklom Discovery, with Base Builder Code attribution, x402 payment-gated mission/race APIs, ACP governance, smart contracts, and same-origin Vercel API routes.
 
 ## Revenue Outcome
 
-Veklom ID monetizes onchain identity and agent game actions through X402-gated mission claims, race launches, USDC settlement, and Base Builder Code attribution for Base rewards analytics.
+Veklom Discovery monetizes AI agent game actions through x402-gated mission claims, governed race launches, USDC settlement, and Base Builder Code attribution for Base rewards analytics.
 
 ## Run
 
@@ -20,7 +20,7 @@ pip install -r requirements.txt
 uvicorn api.veklom_backend:app --host 0.0.0.0 --port 8000
 ```
 
-For hosted deployment, set `NEXT_PUBLIC_VEKLOM_API_URL` to the public URL for `veklom-byos-backend`.
+For hosted deployment on Vercel, leave `NEXT_PUBLIC_VEKLOM_API_URL` blank so the frontend uses the same-origin API routes in this app.
 
 ## Deployment Status
 
@@ -35,6 +35,22 @@ The public page does not connect visitors to the Veklom recipient wallet. `veklo
 ## Base Builder Code
 
 Set `NEXT_PUBLIC_BASE_BUILDER_CODE=bc_r41o5yii` in Vercel after registering the app on Base.dev. The app generates the ERC-8021 data suffix with `ox/erc8021` and applies it through the shared onchain config.
+
+## x402 Payments
+
+Paid routes use exact-price x402 on Base mainnet:
+
+```bash
+X402_PRICE=$0.01
+X402_NETWORK=eip155:8453
+CDP_API_KEY_ID=
+CDP_API_KEY_SECRET=
+VEKLOM_ADDRESS=0x3a74772e925b54F7dAD7FD95c9Ba30825033f970
+```
+
+Mission claim and race launch responses are returned only after x402 verifies and settles payment through the configured facilitator.
+
+Without `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET`, local development falls back to the public x402.org testnet facilitator and Base Sepolia. Production Vercel must have CDP keys set for real Base mainnet payments.
 
 Canonical docs used:
 
