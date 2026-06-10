@@ -87,7 +87,7 @@ Current backend state is in-memory and suitable for local validation only. Produ
 Set this environment variable after registering the app on Base.dev:
 
 ```bash
-NEXT_PUBLIC_BASE_BUILDER_CODE=bc_your_builder_code
+NEXT_PUBLIC_BASE_BUILDER_CODE=bc_r41o5yii
 ```
 
 The frontend uses `ox/erc8021` to generate the Builder Code data suffix. Supported clients can append this suffix to transaction calldata through `dataSuffix`.

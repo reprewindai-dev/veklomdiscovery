@@ -34,7 +34,7 @@ The public page does not connect visitors to the Veklom recipient wallet. `veklo
 
 ## Base Builder Code
 
-Set `NEXT_PUBLIC_BASE_BUILDER_CODE` after registering the app on Base.dev. The app generates the ERC-8021 data suffix with `ox/erc8021` and applies it through the shared onchain config.
+Set `NEXT_PUBLIC_BASE_BUILDER_CODE=bc_r41o5yii` in Vercel after registering the app on Base.dev. The app generates the ERC-8021 data suffix with `ox/erc8021` and applies it through the shared onchain config.
 
 Canonical docs used:
 
