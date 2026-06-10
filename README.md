@@ -52,8 +52,29 @@ Mission claim and race launch responses are returned only after x402 verifies an
 
 Without `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET`, local development falls back to the public x402.org testnet facilitator and Base Sepolia. Production Vercel must have CDP keys set for real Base mainnet payments.
 
+## Base App Notifications
+
+Notifications are delivered only inside the Base App to users who pinned Veklom Discovery and enabled notifications. The Base Dashboard API key stays server-side; callers must also pass `VEKLOM_ADMIN_API_KEY` as `x-admin-key` or `Authorization: Bearer`.
+
+```bash
+BASE_APP_URL=https://veklomdiscovery.vercel.app
+BASE_DASHBOARD_API_KEY=
+VEKLOM_ADMIN_API_KEY=
+```
+
+Server routes:
+
+```text
+GET  /api/base-notifications/users?notification_enabled=true&limit=500
+POST /api/base-notifications/status
+POST /api/base-notifications/send
+```
+
+Base rate limit is 20 notification API requests per minute per IP. Batch sends can include up to 1,000 wallet addresses per request, and Base deduplicates identical notifications within 24 hours.
+
 Canonical docs used:
 
 - https://docs.base.org/llms.txt
 - https://docs.base.org/apps/builder-codes/app-developers
 - https://docs.base.org/apps/growth/rewards
+- https://docs.base.org/apps/technical-guides/base-notifications
