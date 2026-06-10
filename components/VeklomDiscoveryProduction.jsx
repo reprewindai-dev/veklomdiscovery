@@ -77,8 +77,8 @@ const CONFIG = {
   },
 
   API: {
-    BASE_URL: process.env.NEXT_PUBLIC_VEKLOM_API_URL || 'https://veklom-byos-backend.vercel.app',
-    SERVICE: process.env.NEXT_PUBLIC_VEKLOM_BACKEND_SERVICE || 'veklom-byos-backend',
+    BASE_URL: process.env.NEXT_PUBLIC_VEKLOM_API_URL || 'https://veklomdiscovery.vercel.app',
+    SERVICE: process.env.NEXT_PUBLIC_VEKLOM_BACKEND_SERVICE || 'veklomdiscovery',
   },
 };
 
