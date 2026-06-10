@@ -138,7 +138,7 @@ After reading mission details, construct a Base USDC transfer call:
   ],
   "capabilities": {
     "dataSuffix": {
-      "value": "0x62635f7234316f357969690b0080218021802180218021802180218021",
+      "value": "0x62635f6a37783432326f350b0080218021802180218021802180218021",
       "optional": true
     }
   }
