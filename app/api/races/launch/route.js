@@ -1,5 +1,7 @@
 const RECIPIENT = "0x3a74772e925b54F7dAD7FD95c9Ba30825033f970";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   const paymentProof = request.headers.get("x-payment-proof");
 
@@ -21,6 +23,7 @@ export async function POST(request) {
         headers: {
           "Payment-Required": "true",
           "Accept-Payment": "x402",
+          "Cache-Control": "no-store",
         },
       }
     );
@@ -35,6 +38,10 @@ export async function POST(request) {
       agentId: searchParams.get("agent_id"),
       result: "pending_settlement",
       governanceProof: searchParams.get("governance_proof"),
+    },
+  }, {
+    headers: {
+      "Cache-Control": "no-store",
     },
   });
 }

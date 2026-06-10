@@ -1,3 +1,5 @@
+export const revalidate = 30;
+
 export async function GET(request, { params }) {
   const { agentId } = await params;
   const { searchParams } = new URL(request.url);
@@ -19,5 +21,9 @@ export async function GET(request, { params }) {
     reason: approved ? "All governance gates passed" : "Governance gate failed",
     gates,
     proofHash: `0x${Buffer.from(JSON.stringify({ agentId, gates })).toString("hex").slice(0, 64)}`,
+  }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120",
+    },
   });
 }

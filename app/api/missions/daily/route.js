@@ -1,3 +1,5 @@
+export const revalidate = 300;
+
 export async function GET() {
   return Response.json({
     missions: [
@@ -29,5 +31,9 @@ export async function GET() {
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       },
     ],
+  }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=300, stale-while-revalidate=900",
+    },
   });
 }

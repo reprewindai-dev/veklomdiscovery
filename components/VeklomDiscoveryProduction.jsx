@@ -77,7 +77,7 @@ const CONFIG = {
   },
 
   API: {
-    BASE_URL: process.env.NEXT_PUBLIC_VEKLOM_API_URL || 'https://veklomdiscovery.vercel.app',
+    BASE_URL: process.env.NEXT_PUBLIC_VEKLOM_API_URL || '',
     SERVICE: process.env.NEXT_PUBLIC_VEKLOM_BACKEND_SERVICE || 'veklomdiscovery',
   },
 };
@@ -493,7 +493,7 @@ const VeklomDiscoveryProduction = () => {
         setAgent(acpAgent);
         localStorage.setItem('veklom_user', JSON.stringify(newUser));
 
-        const healthResponse = await fetch(`${CONFIG.API.BASE_URL}/health`, { cache: 'no-store' });
+        const healthResponse = await fetch(`${CONFIG.API.BASE_URL}/health`);
         if (!healthResponse.ok) {
           throw new Error(`Backend health check failed (${healthResponse.status})`);
         }
@@ -504,7 +504,7 @@ const VeklomDiscoveryProduction = () => {
           detail: `${health.veklomENS || CONFIG.VEKLOM_ENS} API online`,
         });
 
-        const profileResponse = await fetch(`${CONFIG.API.BASE_URL}/api/user/${CONFIG.VEKLOM_ADDRESS}`, { cache: 'no-store' });
+        const profileResponse = await fetch(`${CONFIG.API.BASE_URL}/api/user/${CONFIG.VEKLOM_ADDRESS}`);
         if (profileResponse.ok) {
           const profile = await profileResponse.json();
           setStats({
@@ -525,7 +525,7 @@ const VeklomDiscoveryProduction = () => {
           }
         }
 
-        const missionResponse = await fetch(`${CONFIG.API.BASE_URL}/api/missions/daily`, { cache: 'no-store' });
+        const missionResponse = await fetch(`${CONFIG.API.BASE_URL}/api/missions/daily`);
         if (missionResponse.ok) {
           const missionPayload = await missionResponse.json();
           setMissions(missionPayload.missions || []);
@@ -615,8 +615,7 @@ const VeklomDiscoveryProduction = () => {
       };
 
       const backendGovernance = await fetch(
-        `${CONFIG.API.BASE_URL}/api/governance/verify/${agent.id}?action=race&amount=0.1&user_address=${CONFIG.VEKLOM_ADDRESS}`,
-        { cache: 'no-store' }
+        `${CONFIG.API.BASE_URL}/api/governance/verify/${agent.id}?action=race&amount=0.1&user_address=${CONFIG.VEKLOM_ADDRESS}`
       ).then((response) => response.ok ? response.json() : null).catch(() => null);
 
       // Evaluate locally so the game remains playable even if the backend is still settling.

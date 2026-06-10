@@ -1,3 +1,5 @@
+export const revalidate = 60;
+
 export async function GET() {
   return Response.json({
     status: "ok",
@@ -5,5 +7,9 @@ export async function GET() {
     veklomENS: "veklom.base.eth",
     service: "veklomdiscovery",
     timestamp: new Date().toISOString(),
+  }, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
   });
 }

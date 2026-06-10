@@ -1,5 +1,7 @@
 const RECIPIENT = "0x3a74772e925b54F7dAD7FD95c9Ba30825033f970";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   const paymentProof = request.headers.get("x-payment-proof");
 
@@ -21,6 +23,7 @@ export async function POST(request) {
         headers: {
           "Payment-Required": "true",
           "Accept-Payment": "x402",
+          "Cache-Control": "no-store",
         },
       }
     );
@@ -36,6 +39,10 @@ export async function POST(request) {
       verified: true,
       proof: paymentProof,
       txHash: searchParams.get("tx_hash"),
+    },
+  }, {
+    headers: {
+      "Cache-Control": "no-store",
     },
   });
 }
