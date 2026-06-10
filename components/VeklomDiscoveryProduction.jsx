@@ -445,6 +445,8 @@ const VeklomDiscoveryProduction = () => {
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [backendStatus, setBackendStatus] = useState({ state: 'checking', detail: 'Checking backend' });
 
   // Integration state
   const x402Handler = useRef(new X402PaymentHandler(CONFIG.VEKLOM_ADDRESS));
@@ -491,9 +493,48 @@ const VeklomDiscoveryProduction = () => {
         setAgent(acpAgent);
         localStorage.setItem('veklom_user', JSON.stringify(newUser));
 
+        const healthResponse = await fetch(`${CONFIG.API.BASE_URL}/health`, { cache: 'no-store' });
+        if (!healthResponse.ok) {
+          throw new Error(`Backend health check failed (${healthResponse.status})`);
+        }
+
+        const health = await healthResponse.json();
+        setBackendStatus({
+          state: 'online',
+          detail: `${health.veklomENS || CONFIG.VEKLOM_ENS} API online`,
+        });
+
+        const profileResponse = await fetch(`${CONFIG.API.BASE_URL}/api/user/${CONFIG.VEKLOM_ADDRESS}`, { cache: 'no-store' });
+        if (profileResponse.ok) {
+          const profile = await profileResponse.json();
+          setStats({
+            trustScore: profile.trustScore,
+            level: profile.level,
+            totalEarned: Number(profile.totalEarned || 0),
+            x402PaymentsReceived: 0,
+            agentActionsExecuted: 0,
+          });
+          if (profile.agent) {
+            const backendAgent = acpFramework.current.registerAgent(profile.agent.id, {
+              ...profile.agent,
+              owner: profile.address,
+              capabilities: ['mission', 'race', 'payment'],
+              budgetLimit: profile.agent.policy === 'aggressive' ? 500 : profile.agent.policy === 'conservative' ? 10 : 50,
+            });
+            setAgent(backendAgent);
+          }
+        }
+
+        const missionResponse = await fetch(`${CONFIG.API.BASE_URL}/api/missions/daily`, { cache: 'no-store' });
+        if (missionResponse.ok) {
+          const missionPayload = await missionResponse.json();
+          setMissions(missionPayload.missions || []);
+        }
+
         setLoading(false);
       } catch (err) {
-        setError(`Init failed: ${err.message}`);
+        setBackendStatus({ state: 'offline', detail: err.message });
+        setError(`Backend connection failed: ${err.message}`);
         setLoading(false);
       }
     };
@@ -501,49 +542,64 @@ const VeklomDiscoveryProduction = () => {
     init();
   }, []);
 
-  // Connect wallet via Base MCP
-  const connectWallet = useCallback(async () => {
+  // Check Base MCP configuration. This does not connect a visitor wallet in-browser.
+  const checkBaseMCP = useCallback(async () => {
     try {
-      const baseMCPConfig = await baseMCP.current.initializeBase();
+      await baseMCP.current.initializeBase();
       setWallet({
         address: CONFIG.VEKLOM_ADDRESS,
-        connected: true,
+        configured: true,
         network: 'base',
-        balance: '0.00', // Would be fetched from chain
+        role: 'payment_recipient',
       });
 
-      addNotification('Base wallet connected', 'success');
+      addNotification('Base MCP payment route configured', 'success');
     } catch (err) {
-      setError(`Wallet connection failed: ${err.message}`);
+      setError(`Base MCP configuration check failed: ${err.message}`);
     }
   }, []);
 
   // X402 Payment: Claim daily drop with payment
   const claimDailyDropWithX402 = useCallback(async () => {
     try {
-      // Prepare X402 payment
-      const paymentRequest = await x402Handler.current.preparePayment(0.01, 'USDC');
-      
-      // This would be sent to Base Account via Base MCP's send tool
-      const baseMCPCall = await baseMCP.current.prepareSendCalls([{
-        to: CONFIG.TOKENS.USDC,
-        value: '0x0',
-        data: dataSuffix || '0x', // ERC-8021 attribution suffix is appended by supported clients.
-      }]);
+      const missionId = missions[0]?.id || 'mission_1';
+      const response = await fetch(
+        `${CONFIG.API.BASE_URL}/api/missions/claim?user_address=${CONFIG.VEKLOM_ADDRESS}&mission_id=${missionId}&tx_hash=0x0000000000000000000000000000000000000000000000000000000000000000`,
+        { method: 'POST' }
+      );
+      const payload = await response.json();
 
-      addNotification(`X402 payment prepared: $0.01 USDC to ${CONFIG.VEKLOM_ADDRESS}`, 'info');
-      
-      // After user approves in Base Account, verify payment
-      const newStats = {
-        ...stats,
-        totalEarned: stats.totalEarned + 0.5,
-        x402PaymentsReceived: stats.x402PaymentsReceived + 1,
-      };
-      setStats(newStats);
+      if (response.status === 402) {
+        const paymentRequest = await x402Handler.current.preparePayment(0.01, 'USDC');
+        await baseMCP.current.prepareSendCalls([{
+          to: CONFIG.TOKENS.USDC,
+          value: '0x0',
+          data: dataSuffix || '0x',
+        }]);
+
+        setNotice({
+          type: 'payment',
+          title: 'X402 payment required',
+          message: `Backend requested ${payload.payment?.amount || paymentRequest.details.amount} ${payload.payment?.currency || paymentRequest.details.currency} to ${payload.payment?.recipient || CONFIG.VEKLOM_ADDRESS}. Reward finalizes only after wallet approval and X-Payment-Proof.`,
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || payload.message || `Claim failed (${response.status})`);
+      }
+
+      setStats((current) => ({
+        ...current,
+        totalEarned: current.totalEarned + Number(payload.reward?.usdc || 0.5),
+        x402PaymentsReceived: current.x402PaymentsReceived + 1,
+        trustScore: current.trustScore + 50,
+      }));
+      addNotification(`Mission finalized with X402 proof`, 'success');
     } catch (err) {
       setError(`X402 payment failed: ${err.message}`);
     }
-  }, [stats]);
+  }, [missions, stats]);
 
   // ACP: Execute governed action (agent racing)
   const launchGovernedRace = useCallback(async () => {
@@ -558,18 +614,42 @@ const VeklomDiscoveryProduction = () => {
         policyType: agent.policy,
       };
 
-      // Evaluate against governance gates
+      const backendGovernance = await fetch(
+        `${CONFIG.API.BASE_URL}/api/governance/verify/${agent.id}?action=race&amount=0.1&user_address=${CONFIG.VEKLOM_ADDRESS}`,
+        { cache: 'no-store' }
+      ).then((response) => response.ok ? response.json() : null).catch(() => null);
+
+      // Evaluate locally so the game remains playable even if the backend is still settling.
       const governanceProof = await acpFramework.current.evaluateGovernance(
         agent.id,
         action,
-        { timestamp: new Date() }
+        { timestamp: new Date(), backendGovernance }
       );
 
       if (!governanceProof.approved) {
         throw new Error(`Governance gate failed: ${governanceProof.reason}`);
       }
 
-      // Execute after governance approval
+      const raceResponse = await fetch(
+        `${CONFIG.API.BASE_URL}/api/races/launch?user_address=${CONFIG.VEKLOM_ADDRESS}&agent_id=${agent.id}&governance_proof=${governanceProof.proof?.proofHash || backendGovernance?.proofHash || '0x'}`,
+        { method: 'POST' }
+      );
+      const racePayload = await raceResponse.json();
+
+      if (raceResponse.status === 402) {
+        setNotice({
+          type: 'payment',
+          title: 'X402 race payment required',
+          message: `Governance passed. Backend requested ${racePayload.payment?.amount || '0.01'} ${racePayload.payment?.currency || 'USDC'} before race settlement.`,
+        });
+        return;
+      }
+
+      if (!raceResponse.ok) {
+        throw new Error(racePayload.error || racePayload.message || `Race failed (${raceResponse.status})`);
+      }
+
+      // Execute after backend settlement accepts the payment proof.
       const execution = await acpFramework.current.executeGovernedAction(
         agent.id,
         action,
@@ -583,6 +663,7 @@ const VeklomDiscoveryProduction = () => {
   }, [agent, stats]);
 
   const addNotification = (msg, type = 'info') => {
+    setNotice({ type, title: msg, message: null });
     console.log(`[${type.toUpperCase()}] ${msg}`);
   };
 
@@ -600,7 +681,7 @@ const VeklomDiscoveryProduction = () => {
 
   return (
     <div className="w-full min-h-screen bg-neutral-950 text-white font-sans">
-      {/* HEADER WITH WALLET */}
+      {/* HEADER */}
       <header className="border-b border-slate-800 bg-neutral-950/90 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between mb-6">
@@ -613,15 +694,15 @@ const VeklomDiscoveryProduction = () => {
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={connectWallet}
+                onClick={checkBaseMCP}
                 className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
-                  wallet?.connected
+                  wallet?.configured
                     ? 'bg-green-900/30 border border-green-700 text-green-400'
                     : 'bg-blue-900/30 border border-blue-700 text-blue-400 hover:bg-blue-900/50'
                 }`}
               >
                 <Wallet className="w-4 h-4 inline mr-2" />
-                {wallet?.connected ? 'Connected' : 'Connect Base'}
+                {wallet?.configured ? 'MCP Configured' : 'Check MCP Setup'}
               </button>
               <div className="text-right">
                 <p className="text-3xl font-bold text-blue-400">{stats?.trustScore}</p>
@@ -638,6 +719,17 @@ const VeklomDiscoveryProduction = () => {
             </div>
           )}
 
+          {notice && (
+            <div className="p-3 bg-amber-900/20 border border-amber-700 rounded-lg flex gap-2 mb-4">
+              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-bold text-amber-300">{notice.title}</p>
+                {notice.message && <p className="text-amber-100/80 mt-1">{notice.message}</p>}
+              </div>
+              <button onClick={() => setNotice(null)} className="ml-auto text-amber-300 hover:text-amber-200">x</button>
+            </div>
+          )}
+
           {/* INTEGRATION STATUS */}
           <div className="grid grid-cols-4 gap-3 text-xs">
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
@@ -649,8 +741,8 @@ const VeklomDiscoveryProduction = () => {
               <p className="font-bold text-green-400">Active</p>
             </div>
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
-              <p className="text-slate-400 mb-1">Base MCP</p>
-              <p className="font-bold text-blue-400">{wallet?.connected ? 'Connected' : 'Offline'}</p>
+              <p className="text-slate-400 mb-1">Backend</p>
+              <p className={`font-bold ${backendStatus.state === 'online' ? 'text-green-400' : 'text-amber-400'}`}>{backendStatus.state}</p>
             </div>
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
               <p className="text-slate-400 mb-1">ENS</p>
@@ -670,6 +762,7 @@ const VeklomDiscoveryProduction = () => {
               <h2 className="text-lg font-bold">X402 Payments</h2>
             </div>
             <p className="text-slate-300 text-sm mb-4">HTTP 402 payment protocol for API monetization</p>
+            <p className="text-xs text-slate-500 mb-4">Backend: {backendStatus.detail}</p>
             
             <div className="space-y-3">
               <button
@@ -680,6 +773,7 @@ const VeklomDiscoveryProduction = () => {
                 Claim Daily Drop ($0.01 USDC)
               </button>
               <div className="text-xs text-slate-400 bg-slate-800/50 p-3 rounded-lg">
+                <p className="font-bold mb-1">Live missions loaded: {missions.length}</p>
                 <p className="font-bold mb-1">How it works:</p>
                 <p>1. Request resource via HTTP GET</p>
                 <p>2. Server responds 402 Payment Required</p>
@@ -721,14 +815,14 @@ const VeklomDiscoveryProduction = () => {
               <Wallet className="w-5 h-5 text-blue-500" />
               <h2 className="text-lg font-bold">Base MCP</h2>
             </div>
-            <p className="text-slate-300 text-sm mb-4">Wallet integration for send, swap, sign</p>
+            <p className="text-slate-300 text-sm mb-4">Payment route for wallet-approved user actions</p>
             
             <div className="space-y-2 text-xs text-slate-400">
-              <p><span className="font-bold">Address:</span> {CONFIG.VEKLOM_ADDRESS.substring(0, 10)}...</p>
+              <p><span className="font-bold">Payment Recipient:</span> {CONFIG.VEKLOM_ADDRESS.substring(0, 10)}...</p>
               <p><span className="font-bold">ENS:</span> {CONFIG.VEKLOM_ENS}</p>
               <p><span className="font-bold">Backend:</span> {CONFIG.API.SERVICE}</p>
               <p><span className="font-bold">Networks:</span> Base, Ethereum, Optimism, Polygon, Arbitrum</p>
-              <p><span className="font-bold">Capabilities:</span> send, swap, sign, send_calls</p>
+              <p><span className="font-bold">Capabilities:</span> send, swap, sign, send_calls after user approval</p>
             </div>
           </div>
 
@@ -743,7 +837,7 @@ const VeklomDiscoveryProduction = () => {
             <div className="space-y-2 text-xs text-slate-400">
               <p><span className="font-bold">Primary Address:</span></p>
               <p className="font-mono bg-slate-800/50 p-2 rounded">{CONFIG.VEKLOM_ADDRESS}</p>
-              <p className="mt-3"><span className="font-bold">Discovery:</span> All Veklom games indexed under this ENS</p>
+              <p className="mt-3"><span className="font-bold">Discovery:</span> Veklom Discovery actions route payments and attribution to this identity</p>
             </div>
           </div>
         </div>

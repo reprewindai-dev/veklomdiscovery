@@ -28,6 +28,10 @@ This repository is ready to deploy to Vercel as the Veklom Discovery web app. Th
 
 The Solidity contracts in `contracts/` are deployment assets. They are not assumed to be live until Foundry deployment completes and the resulting contract addresses are added to environment configuration.
 
+## Visitor Wallet Behavior
+
+The public page does not connect visitors to the Veklom recipient wallet. `veklom.base.eth` is the payment recipient and attribution identity for the app. A visitor must approve their own wallet action through Base MCP or a supported wallet flow before any USDC payment or onchain action can happen.
+
 ## Base Builder Code
 
 Set `NEXT_PUBLIC_BASE_BUILDER_CODE` after registering the app on Base.dev. The app generates the ERC-8021 data suffix with `ox/erc8021` and applies it through the shared onchain config.
