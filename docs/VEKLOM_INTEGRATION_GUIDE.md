@@ -39,10 +39,10 @@ This repository is deployment-ready. It does not assume the web app, backend, or
 
 ## Interfaces / APIs
 
-Default API base:
+Default hosted API base:
 
 ```bash
-https://veklom-byos-backend.vercel.app
+https://veklomdiscovery.vercel.app
 ```
 
 Local API base:
@@ -129,7 +129,7 @@ npm install
 npm run build
 ```
 
-Deploy this repo to Vercel as the Veklom Discovery web app. Configure `NEXT_PUBLIC_VEKLOM_API_URL` to point at `veklom-byos-backend`.
+Deploy this repo to Vercel as the Veklom Discovery web app. Leave `NEXT_PUBLIC_VEKLOM_API_URL` blank so the frontend uses the same-origin Vercel API routes.
 
 ### FastAPI Backend
 

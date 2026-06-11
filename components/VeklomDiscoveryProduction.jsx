@@ -82,6 +82,35 @@ const CONFIG = {
   },
 };
 
+const decodeBase64Json = (value) => {
+  if (!value) return null;
+
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const getX402PaymentRequirement = (response) => {
+  const header = response.headers.get('payment-required');
+  const decoded = decodeBase64Json(header);
+  const accept = decoded?.accepts?.[0];
+
+  if (!accept) return null;
+
+  return {
+    amount: accept.amount,
+    asset: accept.asset,
+    network: accept.network,
+    recipient: accept.payTo,
+    currency: accept.extra?.name || 'USDC',
+    description: decoded?.resource?.description,
+  };
+};
+
 // ============ X402 PAYMENT HANDLER ============
 class X402PaymentHandler {
   constructor(veklomAddress) {
@@ -98,13 +127,13 @@ class X402PaymentHandler {
       throw new Error('Expected 402 Payment Required response');
     }
 
-    const paymentInfo = response.headers.get('payment-required') || {};
+    const paymentInfo = getX402PaymentRequirement(response);
     
     return {
       endpoint: response.url,
-      requiredPayment: paymentDetails.amount,
+      requiredPayment: paymentInfo?.amount || paymentDetails.amount,
       currency: paymentDetails.currency || 'USDC',
-      recipient: this.veklomAddress,
+      recipient: paymentInfo?.recipient || this.veklomAddress,
       deadline: new Date(Date.now() + 5 * 60 * 1000), // 5 min deadline
       paymentProof: null,
     };
@@ -570,6 +599,7 @@ const VeklomDiscoveryProduction = () => {
       const payload = await response.json();
 
       if (response.status === 402) {
+        const paymentRequirement = getX402PaymentRequirement(response);
         const paymentRequest = await x402Handler.current.preparePayment(0.01, 'USDC');
         await baseMCP.current.prepareSendCalls([{
           to: CONFIG.TOKENS.USDC,
@@ -580,7 +610,7 @@ const VeklomDiscoveryProduction = () => {
         setNotice({
           type: 'payment',
           title: 'X402 payment required',
-          message: `Backend requested ${payload.payment?.amount || paymentRequest.details.amount} ${payload.payment?.currency || paymentRequest.details.currency} to ${payload.payment?.recipient || CONFIG.VEKLOM_ADDRESS}. Reward finalizes only after wallet approval and X-Payment-Proof.`,
+          message: `Backend requested ${payload.payment?.amount || paymentRequest.details.amount} ${payload.payment?.currency || paymentRequest.details.currency} to ${paymentRequirement?.recipient || payload.payment?.recipient || CONFIG.VEKLOM_ADDRESS} on ${paymentRequirement?.network || 'Base Mainnet'}. Reward finalizes only after wallet approval and X-Payment-Proof.`,
         });
         return;
       }
@@ -636,10 +666,11 @@ const VeklomDiscoveryProduction = () => {
       const racePayload = await raceResponse.json();
 
       if (raceResponse.status === 402) {
+        const paymentRequirement = getX402PaymentRequirement(raceResponse);
         setNotice({
           type: 'payment',
           title: 'X402 race payment required',
-          message: `Governance passed. Backend requested ${racePayload.payment?.amount || '0.01'} ${racePayload.payment?.currency || 'USDC'} before race settlement.`,
+          message: `Governance passed. Backend requested ${racePayload.payment?.amount || '0.01'} ${racePayload.payment?.currency || 'USDC'} to ${paymentRequirement?.recipient || CONFIG.VEKLOM_ADDRESS} on ${paymentRequirement?.network || 'Base Mainnet'} before race settlement.`,
         });
         return;
       }
