@@ -476,6 +476,7 @@ const VeklomDiscoveryProduction = () => {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [backendStatus, setBackendStatus] = useState({ state: 'checking', detail: 'Checking backend' });
+  const [x402Status, setX402Status] = useState(null);
 
   // Integration state
   const x402Handler = useRef(new X402PaymentHandler(CONFIG.VEKLOM_ADDRESS));
@@ -532,6 +533,13 @@ const VeklomDiscoveryProduction = () => {
           state: 'online',
           detail: `${health.veklomENS || CONFIG.VEKLOM_ENS} API online`,
         });
+
+        const x402StatusResponse = await fetch(`${CONFIG.API.BASE_URL}/api/x402/status`, {
+          cache: 'no-store',
+        });
+        if (x402StatusResponse.ok) {
+          setX402Status(await x402StatusResponse.json());
+        }
 
         const profileResponse = await fetch(`${CONFIG.API.BASE_URL}/api/user/${CONFIG.VEKLOM_ADDRESS}`);
         if (profileResponse.ok) {
@@ -601,6 +609,8 @@ const VeklomDiscoveryProduction = () => {
       if (response.status === 402) {
         const paymentRequirement = getX402PaymentRequirement(response);
         const paymentRequest = await x402Handler.current.preparePayment(0.01, 'USDC');
+        const recipient = paymentRequirement?.recipient || x402Status?.recipient || payload.payment?.recipient || CONFIG.VEKLOM_ADDRESS;
+        const network = paymentRequirement?.network || x402Status?.network || 'eip155:8453';
         await baseMCP.current.prepareSendCalls([{
           to: CONFIG.TOKENS.USDC,
           value: '0x0',
@@ -610,7 +620,7 @@ const VeklomDiscoveryProduction = () => {
         setNotice({
           type: 'payment',
           title: 'X402 payment required',
-          message: `Backend requested ${payload.payment?.amount || paymentRequest.details.amount} ${payload.payment?.currency || paymentRequest.details.currency} to ${paymentRequirement?.recipient || payload.payment?.recipient || CONFIG.VEKLOM_ADDRESS} on ${paymentRequirement?.network || 'Base Mainnet'}. Reward finalizes only after wallet approval and X-Payment-Proof.`,
+          message: `Backend requested ${payload.payment?.amount || paymentRequest.details.amount} ${payload.payment?.currency || paymentRequest.details.currency} to ${recipient} on ${network}. Reward finalizes only after wallet approval and X-Payment-Proof.`,
         });
         return;
       }
@@ -629,7 +639,7 @@ const VeklomDiscoveryProduction = () => {
     } catch (err) {
       setError(`X402 payment failed: ${err.message}`);
     }
-  }, [missions, stats]);
+  }, [missions, stats, x402Status]);
 
   // ACP: Execute governed action (agent racing)
   const launchGovernedRace = useCallback(async () => {
@@ -667,10 +677,12 @@ const VeklomDiscoveryProduction = () => {
 
       if (raceResponse.status === 402) {
         const paymentRequirement = getX402PaymentRequirement(raceResponse);
+        const recipient = paymentRequirement?.recipient || x402Status?.recipient || CONFIG.VEKLOM_ADDRESS;
+        const network = paymentRequirement?.network || x402Status?.network || 'eip155:8453';
         setNotice({
           type: 'payment',
           title: 'X402 race payment required',
-          message: `Governance passed. Backend requested ${racePayload.payment?.amount || '0.01'} ${racePayload.payment?.currency || 'USDC'} to ${paymentRequirement?.recipient || CONFIG.VEKLOM_ADDRESS} on ${paymentRequirement?.network || 'Base Mainnet'} before race settlement.`,
+          message: `Governance passed. Backend requested ${racePayload.payment?.amount || x402Status?.price || '0.01'} ${racePayload.payment?.currency || 'USDC'} to ${recipient} on ${network} before race settlement.`,
         });
         return;
       }
@@ -690,7 +702,7 @@ const VeklomDiscoveryProduction = () => {
     } catch (err) {
       setError(`Governed action failed: ${err.message}`);
     }
-  }, [agent, stats]);
+  }, [agent, stats, x402Status]);
 
   const addNotification = (msg, type = 'info') => {
     setNotice({ type, title: msg, message: null });
@@ -764,7 +776,7 @@ const VeklomDiscoveryProduction = () => {
           <div className="grid grid-cols-4 gap-3 text-xs">
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
               <p className="text-slate-400 mb-1">X402 Payments</p>
-              <p className="font-bold text-green-400">Ready</p>
+              <p className="font-bold text-green-400">{x402Status ? x402Status.network : 'Ready'}</p>
             </div>
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
               <p className="text-slate-400 mb-1">ACP Governance</p>
@@ -849,6 +861,12 @@ const VeklomDiscoveryProduction = () => {
             
             <div className="space-y-2 text-xs text-slate-400">
               <p><span className="font-bold">Payment Recipient:</span> {CONFIG.VEKLOM_ADDRESS.substring(0, 10)}...</p>
+              {x402Status?.recipient && (
+                <p><span className="font-bold">Backend PayTo:</span> {x402Status.recipient.substring(0, 10)}...</p>
+              )}
+              {x402Status?.commit && (
+                <p><span className="font-bold">Deploy:</span> {x402Status.commit.substring(0, 7)}</p>
+              )}
               <p><span className="font-bold">ENS:</span> {CONFIG.VEKLOM_ENS}</p>
               <p><span className="font-bold">Backend:</span> {CONFIG.API.SERVICE}</p>
               <p><span className="font-bold">Networks:</span> Base, Ethereum, Optimism, Polygon, Arbitrum</p>
