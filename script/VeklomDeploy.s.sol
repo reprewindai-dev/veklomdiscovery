@@ -47,7 +47,7 @@ contract VeklomDeploy is Script {
         address rpcUrl;
     }
 
-    address constant VEKLOM_OWNER = 0x3a74772e925b54F7dAD7FD95c9Ba30825033f970;
+    address constant VEKLOM_OWNER = 0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d;
     
     mapping(uint256 => NetworkConfig) public networks;
     

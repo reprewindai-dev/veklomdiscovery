@@ -34,7 +34,7 @@ const toHex = (value) => {
 // ============ CONSTANTS ============
 const CONFIG = {
   // Wallet Integration
-  VEKLOM_ADDRESS: '0x3a74772e925b54F7dAD7FD95c9Ba30825033f970',
+  VEKLOM_ADDRESS: process.env.NEXT_PUBLIC_VEKLOM_ADDRESS || '0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d',
   VEKLOM_ENS: 'veklom.base.eth',
   
   // Networks
@@ -910,7 +910,7 @@ const VeklomDiscoveryProduction = () => {
           <p className="mt-2">X402 HTTP 402 Payment Protocol</p>
           <p>ACP Agent Control Protocol with Governance Gates</p>
           <p>Base MCP Wallet Integration (send, swap, sign, send_calls)</p>
-          <p className="mt-2 font-bold">veklom.base.eth • 0x3a74772e925b54F7dAD7FD95c9Ba30825033f970</p>
+          <p className="mt-2 font-bold">{CONFIG.VEKLOM_ENS} • {CONFIG.VEKLOM_ADDRESS}</p>
           <p>Configured for Base Mainnet (8453) with zkSync, Unichain, and Monad expansion targets</p>
         </div>
       </footer>
