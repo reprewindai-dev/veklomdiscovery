@@ -27,7 +27,7 @@ from enum import Enum
 import uuid
 
 # ============ CONFIGURATION ============
-VEKLOM_ADDRESS = os.getenv("VEKLOM_ADDRESS", "0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d")
+VEKLOM_ADDRESS = os.getenv("VEKLOM_ADDRESS", "0x3a74772e925b54f7dad7fd95c9ba30825033f970")
 VEKLOM_ENS = os.getenv("VEKLOM_ENS", "veklom.base.eth")
 ALLOWED_ORIGINS = [
     origin.strip()
