@@ -16,6 +16,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AlertCircle, ChevronRight, Zap, TrendingUp, Users, Shield, Play, BarChart3, RefreshCw, Lock, Unlock, Award, Gift, Sparkles, Flame, Crown, Eye, MessageSquare, Share2, Settings, LogOut, Wallet, Send, DollarSign, Code } from 'lucide-react';
+import { createSiweMessage, generateSiweNonce } from 'viem/siwe';
+import { useAccount, useConnect, useDisconnect, usePublicClient, useSignMessage, useSwitchChain } from 'wagmi';
+import { base } from 'wagmi/chains';
 import { dataSuffix } from './baseAttribution';
 
 const toHex = (value) => {
@@ -465,6 +468,13 @@ class BaseMCPIntegration {
 
 // ============ VEKLOM DISCOVERY GAME (UPDATED) ============
 const VeklomDiscoveryProduction = () => {
+  const { address, chainId, isConnected, isConnecting, isReconnecting } = useAccount();
+  const { connect, connectors, error: walletError } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { switchChainAsync } = useSwitchChain();
+  const publicClient = usePublicClient();
+  const { signMessageAsync } = useSignMessage();
+
   // Core state
   const [user, setUser] = useState(null);
   const [view, setView] = useState('home');
@@ -477,11 +487,14 @@ const VeklomDiscoveryProduction = () => {
   const [notice, setNotice] = useState(null);
   const [backendStatus, setBackendStatus] = useState({ state: 'checking', detail: 'Checking backend' });
   const [x402Status, setX402Status] = useState(null);
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
 
   // Integration state
   const x402Handler = useRef(new X402PaymentHandler(CONFIG.VEKLOM_ADDRESS));
   const acpFramework = useRef(new ACPAgentFramework());
   const baseMCP = useRef(new BaseMCPIntegration(CONFIG.VEKLOM_ADDRESS));
+  const activeUserAddress = address || CONFIG.VEKLOM_ADDRESS;
 
   // Initialize
   useEffect(() => {
@@ -489,11 +502,15 @@ const VeklomDiscoveryProduction = () => {
       try {
         // Load user
         const storedUser = localStorage.getItem('veklom_user');
+        const storedSession = localStorage.getItem('veklom_siwe_session');
         const newUser = storedUser ? JSON.parse(storedUser) : { 
           id: `user_${Date.now()}`,
           createdAt: new Date().toISOString(),
         };
         setUser(newUser);
+        if (storedSession) {
+          setSession(JSON.parse(storedSession));
+        }
 
         // Initialize X402
         const x402Config = {
@@ -541,7 +558,7 @@ const VeklomDiscoveryProduction = () => {
           setX402Status(await x402StatusResponse.json());
         }
 
-        const profileResponse = await fetch(`${CONFIG.API.BASE_URL}/api/user/${CONFIG.VEKLOM_ADDRESS}`);
+        const profileResponse = await fetch(`${CONFIG.API.BASE_URL}/api/user/${activeUserAddress}`);
         if (profileResponse.ok) {
           const profile = await profileResponse.json();
           setStats({
@@ -577,7 +594,71 @@ const VeklomDiscoveryProduction = () => {
     };
 
     init();
-  }, []);
+  }, [activeUserAddress]);
+
+  const connectWallet = useCallback(async (connector) => {
+    try {
+      await connect({ connector });
+    } catch (err) {
+      setError(`Wallet connection failed: ${err.message}`);
+    }
+  }, [connect]);
+
+  const signInWithEthereum = useCallback(async () => {
+    try {
+      if (!isConnected || !address || !chainId || !publicClient) {
+        throw new Error('Connect a Base-compatible wallet first');
+      }
+
+      setAuthLoading(true);
+
+      if (chainId !== base.id) {
+        await switchChainAsync({ chainId: base.id });
+      }
+
+      const nonce = generateSiweNonce();
+      const message = createSiweMessage({
+        address,
+        chainId: base.id,
+        domain: window.location.host,
+        nonce,
+        statement: 'Sign in to Veklom Discovery to authorize paid mission, race, and notification actions.',
+        uri: window.location.origin,
+        version: '1',
+      });
+      const signature = await signMessageAsync({ message });
+      const valid = await publicClient.verifySiweMessage({ message, signature });
+
+      if (!valid) {
+        throw new Error('SIWE verification failed');
+      }
+
+      const nextSession = {
+        address,
+        chainId: base.id,
+        nonce,
+        signature,
+        signedAt: new Date().toISOString(),
+      };
+      setSession(nextSession);
+      localStorage.setItem('veklom_siwe_session', JSON.stringify(nextSession));
+      addNotification('Wallet authenticated with SIWE', 'success');
+    } catch (err) {
+      setError(`SIWE sign-in failed: ${err.message}`);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [address, chainId, isConnected, publicClient, signMessageAsync, switchChainAsync]);
+
+  const requireWalletSession = useCallback(() => {
+    if (!isConnected || !address) {
+      throw new Error('Connect a wallet before starting paid Base App actions');
+    }
+
+    if (!session || session.address?.toLowerCase() !== address.toLowerCase()) {
+      throw new Error('Sign in with Ethereum before starting paid Base App actions');
+    }
+  }, [address, isConnected, session]);
 
   // Check Base MCP configuration. This does not connect a visitor wallet in-browser.
   const checkBaseMCP = useCallback(async () => {
@@ -599,9 +680,10 @@ const VeklomDiscoveryProduction = () => {
   // X402 Payment: Claim daily drop with payment
   const claimDailyDropWithX402 = useCallback(async () => {
     try {
+      requireWalletSession();
       const missionId = missions[0]?.id || 'mission_1';
       const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/missions/claim?user_address=${CONFIG.VEKLOM_ADDRESS}&mission_id=${missionId}&tx_hash=0x0000000000000000000000000000000000000000000000000000000000000000`,
+        `${CONFIG.API.BASE_URL}/api/missions/claim?user_address=${address}&mission_id=${missionId}&tx_hash=0x0000000000000000000000000000000000000000000000000000000000000000`,
         { method: 'POST' }
       );
       const payload = await response.json();
@@ -639,11 +721,12 @@ const VeklomDiscoveryProduction = () => {
     } catch (err) {
       setError(`X402 payment failed: ${err.message}`);
     }
-  }, [missions, stats, x402Status]);
+  }, [address, missions, requireWalletSession, x402Status]);
 
   // ACP: Execute governed action (agent racing)
   const launchGovernedRace = useCallback(async () => {
     try {
+      requireWalletSession();
       if (!agent) throw new Error('Agent not initialized');
 
       const action = {
@@ -655,7 +738,7 @@ const VeklomDiscoveryProduction = () => {
       };
 
       const backendGovernance = await fetch(
-        `${CONFIG.API.BASE_URL}/api/governance/verify/${agent.id}?action=race&amount=0.1&user_address=${CONFIG.VEKLOM_ADDRESS}`
+        `${CONFIG.API.BASE_URL}/api/governance/verify/${agent.id}?action=race&amount=0.1&user_address=${address}`
       ).then((response) => response.ok ? response.json() : null).catch(() => null);
 
       // Evaluate locally so the game remains playable even if the backend is still settling.
@@ -670,7 +753,7 @@ const VeklomDiscoveryProduction = () => {
       }
 
       const raceResponse = await fetch(
-        `${CONFIG.API.BASE_URL}/api/races/launch?user_address=${CONFIG.VEKLOM_ADDRESS}&agent_id=${agent.id}&governance_proof=${governanceProof.proof?.proofHash || backendGovernance?.proofHash || '0x'}`,
+        `${CONFIG.API.BASE_URL}/api/races/launch?user_address=${address}&agent_id=${agent.id}&governance_proof=${governanceProof.proof?.proofHash || backendGovernance?.proofHash || '0x'}`,
         { method: 'POST' }
       );
       const racePayload = await raceResponse.json();
@@ -702,7 +785,7 @@ const VeklomDiscoveryProduction = () => {
     } catch (err) {
       setError(`Governed action failed: ${err.message}`);
     }
-  }, [agent, stats, x402Status]);
+  }, [address, agent, requireWalletSession, x402Status]);
 
   const addNotification = (msg, type = 'info') => {
     setNotice({ type, title: msg, message: null });
@@ -735,17 +818,47 @@ const VeklomDiscoveryProduction = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button
-                onClick={checkBaseMCP}
-                className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
-                  wallet?.configured
-                    ? 'bg-green-900/30 border border-green-700 text-green-400'
-                    : 'bg-blue-900/30 border border-blue-700 text-blue-400 hover:bg-blue-900/50'
-                }`}
-              >
-                <Wallet className="w-4 h-4 inline mr-2" />
-                {wallet?.configured ? 'MCP Configured' : 'Check MCP Setup'}
-              </button>
+              <div className="flex items-center gap-2">
+                {!isConnected ? (
+                  connectors.map((connector) => (
+                    <button
+                      key={connector.uid}
+                      onClick={() => connectWallet(connector)}
+                      disabled={isConnecting || isReconnecting}
+                      className="px-4 py-2 rounded-lg font-bold text-sm transition bg-blue-900/30 border border-blue-700 text-blue-300 hover:bg-blue-900/50 disabled:opacity-60"
+                    >
+                      <Wallet className="w-4 h-4 inline mr-2" />
+                      {isConnecting || isReconnecting ? 'Connecting' : `Connect ${connector.name}`}
+                    </button>
+                  ))
+                ) : (
+                  <>
+                    <button
+                      onClick={signInWithEthereum}
+                      disabled={authLoading}
+                      className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
+                        session?.address?.toLowerCase() === address?.toLowerCase()
+                          ? 'bg-green-900/30 border border-green-700 text-green-300'
+                          : 'bg-amber-900/30 border border-amber-700 text-amber-300 hover:bg-amber-900/50'
+                      } disabled:opacity-60`}
+                    >
+                      <Shield className="w-4 h-4 inline mr-2" />
+                      {authLoading ? 'Signing' : session?.address?.toLowerCase() === address?.toLowerCase() ? 'SIWE Active' : 'Sign In'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSession(null);
+                        localStorage.removeItem('veklom_siwe_session');
+                        disconnect();
+                      }}
+                      className="px-3 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800"
+                      title="Disconnect wallet"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
               <div className="text-right">
                 <p className="text-3xl font-bold text-blue-400">{stats?.trustScore}</p>
                 <p className="text-xs text-slate-400">TRUST SCORE</p>
@@ -758,6 +871,13 @@ const VeklomDiscoveryProduction = () => {
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
               <span className="text-sm text-red-400">{error}</span>
               <button onClick={() => setError(null)} className="ml-auto text-red-300 hover:text-red-200">✕</button>
+            </div>
+          )}
+
+          {walletError && (
+            <div className="p-3 bg-red-900/20 border border-red-700 rounded-lg flex gap-2 mb-4">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <span className="text-sm text-red-400">{walletError.message}</span>
             </div>
           )}
 
@@ -783,12 +903,16 @@ const VeklomDiscoveryProduction = () => {
               <p className="font-bold text-green-400">Active</p>
             </div>
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
-              <p className="text-slate-400 mb-1">Backend</p>
-              <p className={`font-bold ${backendStatus.state === 'online' ? 'text-green-400' : 'text-amber-400'}`}>{backendStatus.state}</p>
+              <p className="text-slate-400 mb-1">Wallet</p>
+              <p className={`font-bold ${isConnected ? 'text-green-400' : 'text-amber-400'}`}>
+                {isConnected ? `${address?.substring(0, 6)}...${address?.slice(-4)}` : 'Connect'}
+              </p>
             </div>
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
-              <p className="text-slate-400 mb-1">ENS</p>
-              <p className="font-bold text-purple-400">veklom.base.eth</p>
+              <p className="text-slate-400 mb-1">SIWE</p>
+              <p className={`font-bold ${session?.address?.toLowerCase() === address?.toLowerCase() ? 'text-green-400' : 'text-amber-400'}`}>
+                {session?.address?.toLowerCase() === address?.toLowerCase() ? 'Authenticated' : 'Required'}
+              </p>
             </div>
           </div>
         </div>
@@ -809,7 +933,8 @@ const VeklomDiscoveryProduction = () => {
             <div className="space-y-3">
               <button
                 onClick={claimDailyDropWithX402}
-                className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-3 rounded-lg transition"
+                disabled={!isConnected || session?.address?.toLowerCase() !== address?.toLowerCase()}
+                className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4 inline mr-2" />
                 Claim Daily Drop ($0.01 USDC)
@@ -836,7 +961,8 @@ const VeklomDiscoveryProduction = () => {
             <div className="space-y-3">
               <button
                 onClick={launchGovernedRace}
-                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white font-bold py-3 rounded-lg transition"
+                disabled={!isConnected || session?.address?.toLowerCase() !== address?.toLowerCase()}
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play className="w-4 h-4 inline mr-2" />
                 Launch Governed Race
@@ -857,9 +983,10 @@ const VeklomDiscoveryProduction = () => {
               <Wallet className="w-5 h-5 text-blue-500" />
               <h2 className="text-lg font-bold">Base MCP</h2>
             </div>
-            <p className="text-slate-300 text-sm mb-4">Payment route for wallet-approved user actions</p>
+            <p className="text-slate-300 text-sm mb-4">Base App wallet route for user-approved paid actions</p>
             
             <div className="space-y-2 text-xs text-slate-400">
+              <p><span className="font-bold">Connected User:</span> {isConnected ? `${address.substring(0, 10)}...` : 'Not connected'}</p>
               <p><span className="font-bold">Payment Recipient:</span> {CONFIG.VEKLOM_ADDRESS.substring(0, 10)}...</p>
               {x402Status?.recipient && (
                 <p><span className="font-bold">Backend PayTo:</span> {x402Status.recipient.substring(0, 10)}...</p>
@@ -870,7 +997,7 @@ const VeklomDiscoveryProduction = () => {
               <p><span className="font-bold">ENS:</span> {CONFIG.VEKLOM_ENS}</p>
               <p><span className="font-bold">Backend:</span> {CONFIG.API.SERVICE}</p>
               <p><span className="font-bold">Networks:</span> Base, Ethereum, Optimism, Polygon, Arbitrum</p>
-              <p><span className="font-bold">Capabilities:</span> send, swap, sign, send_calls after user approval</p>
+              <p><span className="font-bold">Capabilities:</span> Base Account, injected wallet, SIWE, wagmi writes</p>
             </div>
           </div>
 

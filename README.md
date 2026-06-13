@@ -36,6 +36,12 @@ The public page does not connect visitors to the Veklom recipient wallet. `veklo
 
 Set `NEXT_PUBLIC_BASE_BUILDER_CODE=bc_j7x422o5` in Vercel after registering the app on Base.dev. The app generates the ERC-8021 data suffix with `ox/erc8021` and applies it through the shared onchain config.
 
+## Base App Standard Web Setup
+
+The frontend follows Base's standard web app guidance for the Base App: wagmi + viem for wallet state, `@base-org/account` for Base Account connection, React Query for wagmi state, and SIWE for user authentication before paid actions.
+
+Paid x402 mission and race actions are disabled until a visitor connects a wallet and signs in with Ethereum. The Veklom recipient wallet remains `veklom.base.eth`; the connected visitor wallet is passed as the paying user identity to same-origin API routes.
+
 ## x402 Payments
 
 Paid routes use exact-price x402 on Base mainnet:
