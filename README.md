@@ -42,6 +42,29 @@ The frontend follows Base's standard web app guidance for the Base App: wagmi + 
 
 Paid x402 mission and race actions are disabled until a visitor connects a wallet and signs in with Ethereum. The Veklom recipient wallet remains `veklom.base.eth`; the connected visitor wallet is passed as the paying user identity to same-origin API routes.
 
+Base App registration for Veklom ID:
+
+```text
+NEXT_PUBLIC_BASE_APP_ID=6a20f24cc341f72c2f573eb5
+NEXT_PUBLIC_VEKLOM_ID_ADDRESS=0x3a74772e925b54F7dAD7FD95c9Ba30825033f970
+```
+
+Veklom Discovery/payapi x402 payment routing remains:
+
+```text
+NEXT_PUBLIC_VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
+VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
+```
+
+API credentials for Veklom ID and the veklom.com Base App must stay server-side. Store them only in the deployment provider environment, never in git:
+
+```text
+VEKLOM_ID_API_KEY_ID=
+VEKLOM_ID_API_KEY_SECRET=
+VEKLOM_COM_BASE_APP_API_KEY_ID=
+VEKLOM_COM_BASE_APP_API_KEY_SECRET=
+```
+
 ## x402 Payments
 
 Paid routes use exact-price x402 on Base mainnet:
@@ -51,8 +74,14 @@ X402_PRICE=$0.01
 X402_NETWORK=eip155:8453
 CDP_API_KEY_ID=
 CDP_API_KEY_SECRET=
+NEXT_PUBLIC_BASE_APP_ID=6a20f24cc341f72c2f573eb5
 NEXT_PUBLIC_VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
+NEXT_PUBLIC_VEKLOM_ID_ADDRESS=0x3a74772e925b54F7dAD7FD95c9Ba30825033f970
 VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
+VEKLOM_ID_API_KEY_ID=
+VEKLOM_ID_API_KEY_SECRET=
+VEKLOM_COM_BASE_APP_API_KEY_ID=
+VEKLOM_COM_BASE_APP_API_KEY_SECRET=
 ```
 
 Mission claim and race launch responses are returned only after x402 verifies and settles payment through the configured facilitator.

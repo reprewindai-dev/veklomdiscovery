@@ -4,6 +4,11 @@
 
 Veklom Discovery is a governed AI game platform built around X402 micropayments, ACP governance gates, Base MCP wallet execution, and onchain attribution. The configured recipient identity is `veklom.base.eth` / `0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d`.
 
+Veklom ID is registered separately for Base App identity metadata:
+
+- Base App ID: `6a20f24cc341f72c2f573eb5`
+- Veklom ID wallet: `0x3a74772e925b54F7dAD7FD95c9Ba30825033f970`
+
 This repository is deployment-ready. It does not assume the web app, backend, or contracts are already deployed unless their live URLs and deployed contract addresses are configured.
 
 ## System Components
@@ -96,12 +101,18 @@ The frontend uses `ox/erc8021` to generate the Builder Code data suffix. Support
 
 ```bash
 NEXT_PUBLIC_BASE_BUILDER_CODE=bc_your_builder_code
+NEXT_PUBLIC_BASE_APP_ID=6a20f24cc341f72c2f573eb5
 NEXT_PUBLIC_VEKLOM_API_URL=
 NEXT_PUBLIC_VEKLOM_BACKEND_SERVICE=veklomdiscovery
 NEXT_PUBLIC_VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
+NEXT_PUBLIC_VEKLOM_ID_ADDRESS=0x3a74772e925b54F7dAD7FD95c9Ba30825033f970
 
 VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
 VEKLOM_ENS=veklom.base.eth
+VEKLOM_ID_API_KEY_ID=
+VEKLOM_ID_API_KEY_SECRET=
+VEKLOM_COM_BASE_APP_API_KEY_ID=
+VEKLOM_COM_BASE_APP_API_KEY_SECRET=
 ALLOWED_ORIGINS=https://veklom-id.vercel.app,http://localhost:3000
 
 BASE_MAINNET_RPC=https://mainnet.base.org
