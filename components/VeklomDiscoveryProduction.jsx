@@ -37,7 +37,7 @@ const toHex = (value) => {
 // ============ CONSTANTS ============
 const CONFIG = {
   // Wallet Integration
-  VEKLOM_ADDRESS: process.env.NEXT_PUBLIC_VEKLOM_ADDRESS || '0x3a74772e925b54f7dad7fd95c9ba30825033f970',
+  VEKLOM_ADDRESS: process.env.NEXT_PUBLIC_VEKLOM_ADDRESS || '0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d',
   VEKLOM_ENS: 'veklom.base.eth',
   
   // Networks

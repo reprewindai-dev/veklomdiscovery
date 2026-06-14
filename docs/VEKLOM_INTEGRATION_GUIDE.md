@@ -2,7 +2,7 @@
 
 ## Objective
 
-Veklom Discovery is a governed AI game platform built around X402 micropayments, ACP governance gates, Base MCP wallet execution, and onchain attribution. The configured recipient identity is `veklom.base.eth` / `0x3a74772e925b54f7dad7fd95c9ba30825033f970`.
+Veklom Discovery is a governed AI game platform built around X402 micropayments, ACP governance gates, Base MCP wallet execution, and onchain attribution. The configured recipient identity is `veklom.base.eth` / `0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d`.
 
 This repository is deployment-ready. It does not assume the web app, backend, or contracts are already deployed unless their live URLs and deployed contract addresses are configured.
 
@@ -22,7 +22,7 @@ This repository is deployment-ready. It does not assume the web app, backend, or
 
 1. Base MCP calls `get_wallets` and confirms the user's address.
 2. Client reads missions from `{VEKLOM_API_BASE}/api/missions/daily?address={address}`.
-3. Client prepares a `0.01 USDC` Base transfer to `0x3a74772e925b54f7dad7fd95c9ba30825033f970`.
+3. Client prepares a `0.01 USDC` Base transfer to `0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d`.
 4. Base MCP executes `send_calls` and appends the ERC-8021 Builder Code suffix when configured.
 5. User approves in Base Account.
 6. Client posts `/api/missions/claim` with `X-Payment-Proof` and the confirmed transaction hash.
@@ -98,9 +98,9 @@ The frontend uses `ox/erc8021` to generate the Builder Code data suffix. Support
 NEXT_PUBLIC_BASE_BUILDER_CODE=bc_your_builder_code
 NEXT_PUBLIC_VEKLOM_API_URL=
 NEXT_PUBLIC_VEKLOM_BACKEND_SERVICE=veklomdiscovery
-NEXT_PUBLIC_VEKLOM_ADDRESS=0x3a74772e925b54f7dad7fd95c9ba30825033f970
+NEXT_PUBLIC_VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
 
-VEKLOM_ADDRESS=0x3a74772e925b54f7dad7fd95c9ba30825033f970
+VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
 VEKLOM_ENS=veklom.base.eth
 ALLOWED_ORIGINS=https://veklom-id.vercel.app,http://localhost:3000
 
@@ -153,7 +153,7 @@ After deployment, add contract addresses to app and backend configuration.
 
 ## Constraints
 
-- Payment recipient for this Discovery app is `0x3a74772e925b54f7dad7fd95c9ba30825033f970`.
+- Payment recipient for this Discovery app is `0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d`.
 - Live financial claims require confirmed onchain transactions.
 - Base MCP onboarding is mandatory before Veklom actions.
 - Veklom Discovery and Veklom ID must remain separate products with separate deployment targets and wallet configuration.

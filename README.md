@@ -24,7 +24,7 @@ For hosted deployment on Vercel, leave `NEXT_PUBLIC_VEKLOM_API_URL` blank so the
 
 ## Deployment Status
 
-This repository is ready to deploy to Vercel as the Veklom Discovery web app. The configured recipient identity is `veklom.base.eth` / `0x3a74772e925b54f7dad7fd95c9ba30825033f970`.
+This repository is ready to deploy to Vercel as the Veklom Discovery web app. The configured recipient identity is `veklom.base.eth` / `0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d`.
 
 The Solidity contracts in `contracts/` are deployment assets. They are not assumed to be live until Foundry deployment completes and the resulting contract addresses are added to environment configuration.
 
@@ -51,8 +51,8 @@ X402_PRICE=$0.01
 X402_NETWORK=eip155:8453
 CDP_API_KEY_ID=
 CDP_API_KEY_SECRET=
-NEXT_PUBLIC_VEKLOM_ADDRESS=0x3a74772e925b54f7dad7fd95c9ba30825033f970
-VEKLOM_ADDRESS=0x3a74772e925b54f7dad7fd95c9ba30825033f970
+NEXT_PUBLIC_VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
+VEKLOM_ADDRESS=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
 ```
 
 Mission claim and race launch responses are returned only after x402 verifies and settles payment through the configured facilitator.

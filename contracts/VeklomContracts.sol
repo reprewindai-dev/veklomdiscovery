@@ -48,8 +48,8 @@ contract VeklomGameRegistry is Ownable, ReentrancyGuard {
     uint256 public gameCounter;
     uint256 public agentCounter;
     
-    address public veklomAddress = 0x3a74772e925b54f7dad7fd95c9ba30825033f970;
-    address public baseName = 0x3a74772e925b54f7dad7fd95c9ba30825033f970; // veklom.base.eth
+    address public veklomAddress = 0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d;
+    address public baseName = 0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d; // veklom.base.eth
 
     event GameRegistered(uint256 indexed gameId, address indexed owner, string name);
     event AgentRegistered(uint256 indexed agentId, address indexed owner, string name, bool isAutonomous);
@@ -139,7 +139,7 @@ contract VeklomGameRegistry is Ownable, ReentrancyGuard {
 contract VeklomPaymentVault is Ownable, ReentrancyGuard {
     IERC20 public immutable USDC;
     
-    address public veklomAddress = 0x3a74772e925b54f7dad7fd95c9ba30825033f970;
+    address public veklomAddress = 0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d;
     uint256 public totalVolumeProcessed;
     uint256 public totalPaymentsReceived;
 

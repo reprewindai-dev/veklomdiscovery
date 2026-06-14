@@ -287,10 +287,10 @@ python veklom_backend.py
 curl http://localhost:8000/health
 
 # 4. Create a user
-curl http://localhost:8000/api/user/0x3a74772e925b54f7dad7fd95c9ba30825033f970
+curl http://localhost:8000/api/user/0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d
 
 # 5. Get daily missions
-curl "http://localhost:8000/api/missions/daily?address=0x3a74772e925b54f7dad7fd95c9ba30825033f970"
+curl "http://localhost:8000/api/missions/daily?address=0xCC34553b4e6332ffb9C1b61E22436ACA53113D1d"
 
 # 6. Open frontend in React/Next.js app
 # Import veklom-discovery-production.jsx
