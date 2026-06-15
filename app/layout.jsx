@@ -4,8 +4,8 @@ import Providers from "./providers";
 import { BASE_APP_ID } from "../config/veklomIdentity";
 
 export const metadata = {
-  title: "Veklom Discovery",
-  description: "Governed onchain identity, X402 payments, and Base Builder Code attribution for Veklom Discovery.",
+  title: "Veklom ID",
+  description: "Verified Base App identity for Veklom ID, with Veklom.com and Discovery payment routing kept separate.",
   metadataBase: new URL("https://veklom-id.vercel.app"),
   other: {
     "base:app_id": BASE_APP_ID,

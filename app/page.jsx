@@ -1,7 +1,7 @@
 "use client";
 
-import VeklomDiscoveryProduction from "../components/VeklomDiscoveryProduction";
+import VeklomIdHome from "../components/VeklomIdHome";
 
 export default function Page() {
-  return <VeklomDiscoveryProduction />;
+  return <VeklomIdHome />;
 }
