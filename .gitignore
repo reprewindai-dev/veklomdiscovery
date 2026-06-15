@@ -12,3 +12,5 @@ venv/
 cache/
 broadcast/
 lib/
+
+.vercel
