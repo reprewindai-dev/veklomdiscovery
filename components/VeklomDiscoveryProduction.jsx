@@ -20,7 +20,7 @@ import { createSiweMessage, generateSiweNonce } from 'viem/siwe';
 import { useAccount, useConnect, useDisconnect, usePublicClient, useSignMessage, useSwitchChain } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { dataSuffix } from './baseAttribution';
-import { BASE_APP_ID, VEKLOM_DISCOVERY_ADDRESS, VEKLOM_ID_ADDRESS } from '../config/veklomIdentity';
+import { BASE_APP_ID, VEKLOM_COM_ADDRESS, VEKLOM_DISCOVERY_ADDRESS, VEKLOM_ID_ADDRESS } from '../config/veklomIdentity';
 
 const toHex = (value) => {
   if (typeof window !== 'undefined' && window.TextEncoder) {
@@ -39,6 +39,7 @@ const toHex = (value) => {
 const CONFIG = {
   // Wallet Integration
   VEKLOM_ADDRESS: VEKLOM_DISCOVERY_ADDRESS,
+  VEKLOM_COM_ADDRESS,
   VEKLOM_ID_ADDRESS,
   BASE_APP_ID,
   VEKLOM_ENS: 'veklom.base.eth',
@@ -991,6 +992,7 @@ const VeklomDiscoveryProduction = () => {
             <div className="space-y-2 text-xs text-slate-400">
               <p><span className="font-bold">Connected User:</span> {isConnected ? `${address.substring(0, 10)}...` : 'Not connected'}</p>
               <p><span className="font-bold">Payment Recipient:</span> {CONFIG.VEKLOM_ADDRESS.substring(0, 10)}...</p>
+              <p><span className="font-bold">Veklom.com:</span> {CONFIG.VEKLOM_COM_ADDRESS.substring(0, 10)}...</p>
               <p><span className="font-bold">Veklom ID:</span> {CONFIG.VEKLOM_ID_ADDRESS.substring(0, 10)}...</p>
               <p><span className="font-bold">Base App ID:</span> {CONFIG.BASE_APP_ID}</p>
               {x402Status?.recipient && (
