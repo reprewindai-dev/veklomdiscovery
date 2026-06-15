@@ -7,7 +7,7 @@ import { BASE_APP_ID, VEKLOM_COM_ADDRESS, VEKLOM_ID_ADDRESS } from "../config/ve
 const identityRows = [
   ["Base App ID", BASE_APP_ID],
   ["Veklom ID Wallet", VEKLOM_ID_ADDRESS],
-  ["Veklom.com / Discovery Wallet", VEKLOM_COM_ADDRESS],
+  ["Veklom.com Payment Wallet", VEKLOM_COM_ADDRESS],
   ["Network", "Base Mainnet"],
   ["Verification Domain", "veklom-id.vercel.app"],
 ];
@@ -55,7 +55,7 @@ export default function VeklomIdHome() {
                 Veklom ID is the verified Base identity layer.
               </h1>
               <p className="mt-6 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
-                This app owns the Base App registration for Veklom ID. Veklom.com and Veklom Discovery keep their shared payment wallet separate.
+                This app owns the Base App registration for Veklom ID. Veklom.com keeps its payment wallet separate from the identity wallet.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
@@ -110,7 +110,7 @@ export default function VeklomIdHome() {
                   Wallet split
                 </div>
                 <p className="text-sm leading-6 text-slate-300">
-                  Veklom ID uses the ID wallet for app identity. Veklom.com and Discovery route x402 payments to the shared production wallet.
+                  Veklom ID uses the ID wallet for app identity. Veklom.com routes x402 payments to its production wallet.
                 </p>
               </div>
             </div>
