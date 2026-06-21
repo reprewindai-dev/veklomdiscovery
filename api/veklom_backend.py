@@ -204,6 +204,31 @@ async def health():
         "timestamp": datetime.utcnow().isoformat(),
     }
 
+@app.get("/.well-known/x402.json")
+async def x402_discovery():
+    return {
+        "x402_version": 2,
+        "provider": "Veklom Discovery — Agentic Commerce Platform",
+        "network": "eip155:8453",
+        "payTo": VEKLOM_ADDRESS,
+        "currency": "USDC",
+        "identity": {
+            "veklom_id_app": "6a20f24cc341f72c2f573eb5",
+            "veklom_id_wallet": "0x3a74772e925b54F7dAD7FD95c9Ba30825033f970",
+            "verification_domain": "veklom-id.vercel.app",
+        },
+        "routes": [
+            {"route": "POST /api/missions/claim", "price": "$0.01", "description": "Claim an agentic mission with x402 micropayment.", "tags": ["discovery", "mission", "claim", "x402", "veklom"]},
+            {"route": "POST /api/races/launch", "price": "$0.01", "description": "Launch an agent race with x402 entry fee.", "tags": ["discovery", "race", "launch", "x402", "veklom"]},
+            {"route": "GET /api/x402/status", "price": "free", "description": "Check x402 payment status and wallet balance.", "tags": ["discovery", "x402", "status"]},
+            {"route": "GET /api/leaderboard", "price": "$0.003", "description": "Global trust leaderboard across all operators.", "tags": ["discovery", "leaderboard", "trust", "veklom"]},
+        ],
+        "discovery": {
+            "bazaar": "https://bazaar.cdp.coinbase.com",
+            "veklom_id": "https://veklom-id.vercel.app",
+        },
+    }
+
 # ============ USER ENDPOINTS ============
 @app.get("/api/user/{address}")
 async def get_user_profile(address: str):
