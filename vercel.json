@@ -1,5 +1,16 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS,PUT,PATCH,DELETE" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-Payment, X-Payment-Challenge, Content-Type, Authorization" },
+        { "key": "Access-Control-Expose-Headers", "value": "X-Payment-Required, X-Payment-Challenge, X-Payment-Address, X-Payment-Price-USDC, X-Payment-Network, X-Payment-Asset" }
+      ]
+    }
+  ]
 }
