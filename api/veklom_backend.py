@@ -43,7 +43,7 @@ NETWORKS = {
         "chainId": 8453,
         "name": "Base Mainnet",
         "rpc": "https://mainnet.base.org",
-        "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b3228cdeC9F"
+        "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     },
     "baseSepo": {
         "chainId": 84532,

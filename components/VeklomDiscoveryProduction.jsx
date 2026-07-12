@@ -35,6 +35,11 @@ const toHex = (value) => {
     .join('');
 };
 
+const configuredAddress = (value) => {
+  const clean = String(value || '').trim();
+  return /^0x[a-fA-F0-9]{40}$/.test(clean) ? clean : null;
+};
+
 // ============ CONSTANTS ============
 const CONFIG = {
   // Wallet Integration
@@ -71,16 +76,16 @@ const CONFIG = {
   
   // Token Addresses (Base Mainnet)
   TOKENS: {
-    USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b3228cdeC9F',
+    USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     WETH: '0x4200000000000000000000000000000000000006',
     SOL: '0x311935Cd80B76769bF2ecC9D8Ab7635b2139cf82',
   },
   
   // Contract Addresses
   CONTRACTS: {
-    VEKLOM_REGISTRY: '0x0000000000000000000000000000000000000000', // Deploy your own
-    VEKLOM_PAYMENT_VAULT: '0x0000000000000000000000000000000000000000',
-    GAME_REPUTATION_LEDGER: '0x0000000000000000000000000000000000000000',
+    VEKLOM_REGISTRY: configuredAddress(process.env.NEXT_PUBLIC_VEKLOM_DISCOVERY_REGISTRY),
+    VEKLOM_PAYMENT_VAULT: configuredAddress(process.env.NEXT_PUBLIC_VEKLOM_DISCOVERY_PAYMENT_VAULT),
+    GAME_REPUTATION_LEDGER: configuredAddress(process.env.NEXT_PUBLIC_VEKLOM_DISCOVERY_REPUTATION_LEDGER),
   },
 
   API: {
@@ -199,6 +204,10 @@ class X402PaymentHandler {
    * Batch settle multiple micropayments (EVM batch settlement)
    */
   async batchSettle(payments, chainId = 8453) {
+    if (!CONFIG.CONTRACTS.VEKLOM_PAYMENT_VAULT) {
+      throw new Error('Veklom Discovery payment vault contract is not configured');
+    }
+
     const batch = {
       id: `batch_${Date.now()}`,
       chainId: chainId,
@@ -687,7 +696,7 @@ const VeklomDiscoveryProduction = () => {
       requireWalletSession();
       const missionId = missions[0]?.id || 'mission_1';
       const response = await fetch(
-        `${CONFIG.API.BASE_URL}/api/missions/claim?user_address=${address}&mission_id=${missionId}&tx_hash=0x0000000000000000000000000000000000000000000000000000000000000000`,
+        `${CONFIG.API.BASE_URL}/api/missions/claim?user_address=${address}&mission_id=${missionId}`,
         { method: 'POST' }
       );
       const payload = await response.json();

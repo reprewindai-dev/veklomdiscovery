@@ -16,7 +16,7 @@ export async function GET() {
     recipient: X402_RECIPIENT,
     network: X402_NETWORK,
     price: X402_PRICE,
-    asset: "0x833589fCD6eDb6E08f4c7C32D4f71b3228cdeC9F",
+    asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     builderCode: process.env.NEXT_PUBLIC_BASE_BUILDER_CODE || null,
     routes: {
       missionClaim: missionClaimRouteConfig,
