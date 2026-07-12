@@ -16,8 +16,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AlertCircle, ChevronRight, Zap, TrendingUp, Users, Shield, Play, BarChart3, RefreshCw, Lock, Unlock, Award, Gift, Sparkles, Flame, Crown, Eye, MessageSquare, Share2, Settings, LogOut, Wallet, Send, DollarSign, Code } from 'lucide-react';
+import { encodeFunctionData } from 'viem';
 import { createSiweMessage, generateSiweNonce } from 'viem/siwe';
-import { useAccount, useConnect, useDisconnect, usePublicClient, useSignMessage, useSwitchChain } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, usePublicClient, useSendTransaction, useSignMessage, useSwitchChain } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { dataSuffix } from './baseAttribution';
 import { BASE_APP_ID, VEKLOM_COM_ADDRESS, VEKLOM_DISCOVERY_ADDRESS, VEKLOM_ID_ADDRESS } from '../config/veklomIdentity';
@@ -38,6 +39,27 @@ const toHex = (value) => {
 const configuredAddress = (value) => {
   const clean = String(value || '').trim();
   return /^0x[a-fA-F0-9]{40}$/.test(clean) ? clean : null;
+};
+
+const ERC20_TRANSFER_ABI = [
+  {
+    name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'value', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+];
+
+const normalizeX402Amount = (amount) => {
+  if (amount === undefined || amount === null) return BigInt(0);
+  const clean = String(amount).trim();
+  if (!clean) return BigInt(0);
+  if (/^\d+$/.test(clean)) return BigInt(clean);
+  return BigInt(Math.round(Number(clean) * 1_000_000));
 };
 
 // ============ CONSTANTS ============
@@ -486,6 +508,7 @@ const VeklomDiscoveryProduction = () => {
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
   const publicClient = usePublicClient();
+  const { sendTransactionAsync } = useSendTransaction();
   const { signMessageAsync } = useSignMessage();
 
   // Core state
@@ -673,6 +696,35 @@ const VeklomDiscoveryProduction = () => {
     }
   }, [address, isConnected, session]);
 
+  const sendX402Payment = useCallback(async (paymentRequirement, fallbackAmount = '0.01') => {
+    requireWalletSession();
+
+    if (chainId !== base.id) {
+      await switchChainAsync({ chainId: base.id });
+    }
+
+    const recipient = configuredAddress(paymentRequirement?.recipient) || configuredAddress(x402Status?.recipient) || CONFIG.VEKLOM_ADDRESS;
+    const asset = configuredAddress(paymentRequirement?.asset) || configuredAddress(x402Status?.asset) || CONFIG.TOKENS.USDC;
+    const amountMicro = normalizeX402Amount(paymentRequirement?.amount || fallbackAmount);
+
+    if (!recipient || !asset || amountMicro <= BigInt(0)) {
+      throw new Error('X402 payment challenge did not include a valid recipient, asset, and amount');
+    }
+
+    const transferData = encodeFunctionData({
+      abi: ERC20_TRANSFER_ABI,
+      functionName: 'transfer',
+      args: [recipient, amountMicro],
+    });
+
+    return sendTransactionAsync({
+      to: asset,
+      data: transferData,
+      value: BigInt(0),
+      chainId: base.id,
+    });
+  }, [chainId, requireWalletSession, sendTransactionAsync, switchChainAsync, x402Status]);
+
   // Check Base MCP configuration. This does not connect a visitor wallet in-browser.
   const checkBaseMCP = useCallback(async () => {
     try {
@@ -703,19 +755,32 @@ const VeklomDiscoveryProduction = () => {
 
       if (response.status === 402) {
         const paymentRequirement = getX402PaymentRequirement(response);
-        const paymentRequest = await x402Handler.current.preparePayment(0.01, 'USDC');
-        const recipient = paymentRequirement?.recipient || x402Status?.recipient || payload.payment?.recipient || CONFIG.VEKLOM_ADDRESS;
+        const txHash = await sendX402Payment(paymentRequirement, '0.01');
+        const recipient = paymentRequirement?.recipient || x402Status?.recipient || CONFIG.VEKLOM_ADDRESS;
         const network = paymentRequirement?.network || x402Status?.network || 'eip155:8453';
-        await baseMCP.current.prepareSendCalls([{
-          to: CONFIG.TOKENS.USDC,
-          value: '0x0',
-          data: dataSuffix || '0x',
-        }]);
 
+        const paidResponse = await fetch(
+          `${CONFIG.API.BASE_URL}/api/missions/claim?user_address=${address}&mission_id=${missionId}&tx_hash=${txHash}`,
+          {
+            method: 'POST',
+            headers: { 'X-Payment': txHash },
+          }
+        );
+        const paidPayload = await paidResponse.json();
+        if (!paidResponse.ok) {
+          throw new Error(paidPayload.error || paidPayload.message || `Paid claim proof rejected (${paidResponse.status})`);
+        }
+
+        setStats((current) => ({
+          ...current,
+          totalEarned: current.totalEarned + Number(paidPayload.reward?.usdc || 0.5),
+          x402PaymentsReceived: current.x402PaymentsReceived + 1,
+          trustScore: current.trustScore + 50,
+        }));
         setNotice({
-          type: 'payment',
-          title: 'X402 payment required',
-          message: `Backend requested ${payload.payment?.amount || paymentRequest.details.amount} ${payload.payment?.currency || paymentRequest.details.currency} to ${recipient} on ${network}. Reward finalizes only after wallet approval and X-Payment-Proof.`,
+          type: 'success',
+          title: 'Mission finalized with Base payment proof',
+          message: `Paid ${paymentRequirement?.amount || '0.01 USDC'} to ${recipient} on ${network}. Tx: ${txHash}`,
         });
         return;
       }
@@ -734,7 +799,7 @@ const VeklomDiscoveryProduction = () => {
     } catch (err) {
       setError(`X402 payment failed: ${err.message}`);
     }
-  }, [address, missions, requireWalletSession, x402Status]);
+  }, [address, missions, requireWalletSession, sendX402Payment, x402Status]);
 
   // ACP: Execute governed action (agent racing)
   const launchGovernedRace = useCallback(async () => {
@@ -773,17 +838,21 @@ const VeklomDiscoveryProduction = () => {
 
       if (raceResponse.status === 402) {
         const paymentRequirement = getX402PaymentRequirement(raceResponse);
+        const txHash = await sendX402Payment(paymentRequirement, '0.01');
         const recipient = paymentRequirement?.recipient || x402Status?.recipient || CONFIG.VEKLOM_ADDRESS;
-        const network = paymentRequirement?.network || x402Status?.network || 'eip155:8453';
-        setNotice({
-          type: 'payment',
-          title: 'X402 race payment required',
-          message: `Governance passed. Backend requested ${racePayload.payment?.amount || x402Status?.price || '0.01'} ${racePayload.payment?.currency || 'USDC'} to ${recipient} on ${network} before race settlement.`,
-        });
-        return;
-      }
-
-      if (!raceResponse.ok) {
+        const paidRaceResponse = await fetch(
+          `${CONFIG.API.BASE_URL}/api/races/launch?user_address=${address}&agent_id=${agent.id}&governance_proof=${governanceProof.proof?.proofHash || backendGovernance?.proofHash || '0x'}&tx_hash=${txHash}`,
+          {
+            method: 'POST',
+            headers: { 'X-Payment': txHash },
+          }
+        );
+        const paidRacePayload = await paidRaceResponse.json();
+        if (!paidRaceResponse.ok) {
+          throw new Error(paidRacePayload.error || paidRacePayload.message || `Paid race proof rejected (${paidRaceResponse.status})`);
+        }
+        racePayload.race = paidRacePayload.race;
+      } else if (!raceResponse.ok) {
         throw new Error(racePayload.error || racePayload.message || `Race failed (${raceResponse.status})`);
       }
 
@@ -798,7 +867,7 @@ const VeklomDiscoveryProduction = () => {
     } catch (err) {
       setError(`Governed action failed: ${err.message}`);
     }
-  }, [address, agent, requireWalletSession, x402Status]);
+  }, [address, agent, requireWalletSession, sendX402Payment, x402Status]);
 
   const addNotification = (msg, type = 'info') => {
     setNotice({ type, title: msg, message: null });
