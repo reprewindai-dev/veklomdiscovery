@@ -1,11 +1,40 @@
 const BASE_NOTIFICATIONS_URL = "https://dashboard.base.org/api/v1/notifications";
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 20;
+const rateLimitState = new Map();
 
 export const BASE_APP_URL =
   process.env.BASE_APP_URL || "https://veklomdiscovery.vercel.app";
 
 function jsonError(message, status = 400) {
   return Response.json({ success: false, error: message }, { status });
+}
+
+function getClientKey(request) {
+  const forwardedFor = request.headers.get("x-forwarded-for") || "";
+  const realIp = request.headers.get("x-real-ip") || "";
+  const raw = forwardedFor.split(",")[0].trim() || realIp.trim() || "anonymous";
+  return raw;
+}
+
+function enforceRateLimit(request) {
+  const key = getClientKey(request);
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (rateLimitState.get(key) || []).filter((timestamp) => timestamp > windowStart);
+
+  if (timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
+    return jsonError("Rate limit exceeded", 429);
+  }
+
+  timestamps.push(now);
+  rateLimitState.set(key, timestamps);
+  return null;
+}
+
+export function __resetNotificationRateLimitState() {
+  rateLimitState.clear();
 }
 
 export function requireAdmin(request) {
@@ -98,6 +127,9 @@ export function validateNotificationPayload(payload) {
 }
 
 export async function getNotificationUsers(request) {
+  const rateLimitError = enforceRateLimit(request);
+  if (rateLimitError) return rateLimitError;
+
   const authError = requireAdmin(request);
   if (authError) return authError;
 
@@ -128,6 +160,9 @@ export async function getNotificationUsers(request) {
 }
 
 export async function getNotificationStatus(request) {
+  const rateLimitError = enforceRateLimit(request);
+  if (rateLimitError) return rateLimitError;
+
   const authError = requireAdmin(request);
   if (authError) return authError;
 
@@ -148,6 +183,9 @@ export async function getNotificationStatus(request) {
 }
 
 export async function sendNotification(request) {
+  const rateLimitError = enforceRateLimit(request);
+  if (rateLimitError) return rateLimitError;
+
   const authError = requireAdmin(request);
   if (authError) return authError;
 
